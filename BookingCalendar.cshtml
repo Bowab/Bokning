@@ -1,0 +1,175 @@
+﻿@model Albatross.Project.BookingCalendarComponent
+
+
+<section id="unbook" ew-if="Model.ShowUnbook">
+    <h4>Vill du verkligen avboka?</h4>
+    <form action="" method="post">
+        <input type="submit" value="Ja" />
+    </form>
+</section>
+
+<section id="calendarcontainer" class="calendar-section" ew-if="Model.Calendar != null && !Model.ShowUnbook">
+
+    <div class="calendar-popup" ew-calendar-popup>
+        <div class="popup-intro">
+            <h3 class="">Boka</h3>
+            <div class="popup-nav">
+                <span ew-calendar-close></span>
+            </div>
+        </div>
+        <div class="popup-intro">
+            <p>Du kommer att få en e-post som bekräftar din bokning.</p>
+        </div>
+
+        <div class="form-wrapper">
+            <form class="form" action="" method="post">
+                @*
+                    ?key=BookingCalendar
+
+                    /template/kontakt?key=BookingCalendar
+                *@
+                <div>
+                    <input type="text" name="name" value="" placeholder="Namn" />
+                    <input type="text" name="email" value="" placeholder="E-post" />
+                    <input type="hidden" name="date" value="1" id="input-date" ew-input-bookdate />
+                    <input type="hidden" name="timespanid" value="2" ew-input-timespanid />
+                </div>
+                <div class="btn-container">
+                    <input type="submit" value="Boka" />
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div style="display:none;">
+        <span ew-calendar-today="@Model.FirstMonday.Date"></span>
+        <span ew-calendar-lastdate="@Model.LastDateToDisplay.Date"></span>
+        <span ew-calendar-firstdate="@Model.FirstDateToDisplay.Date"></span>
+    </div>
+
+    <div class="calendar-wrapper">
+        <div class="calendar">
+            <div class="calendar-navigation">
+                <div class="calendar-navigation-arrows">
+                    <span ew-calendar-prev></span> @*Prev*@
+                    <span ew-calendar-next></span> @*Next*@
+                </div>
+                <div class="title-wrapper">
+                    <p class="calendar-navigation-date">@Model.FirstDateToDisplay.ToString("MMMM") @Model.FirstDateToDisplay.ToString("yyyy")</p>
+                    <p class="calendar-navigation-date">@Model.CalendarLabel</p>
+                </div>
+            </div>
+            <div class="calendar-grid">
+                @* Day *@
+                @foreach (var item in Model.CalendarViewModel)
+                {
+                    <div class="calendar-grid-item">
+                        <p>@item.WeekDay.ToString("ddd MMM dd")</p>
+
+                        @if (Model.UnavalibleDates.Any(x => x.Date == item.WeekDay.Date.Date))
+                        {
+                            <div class="calendar-grid-item-unavailable"></div>
+
+                        }
+                        else
+                        {
+                            @* List of available timespans  *@
+                            @foreach (var timeSpan in item.CalendarTimeSpans)
+                            {
+                                @* Calendar always starts on a monday, check if monday has passed. *@
+                                @if (item.WeekDay.Date < DateTime.Now.Date)
+                                {
+                                    <div class="calendar-grid-item-unavailable"></div>
+                                }
+                                else
+                                {
+                                    @if (timeSpan.Unavalible)
+                                    {
+                                        @* Timespan already booked *@
+                                        <div class="calendar-grid-item-available booked">@timeSpan.StartAsTime - @timeSpan.EndAsTime</div>
+                                    }
+                                    else
+                                    {
+                                        @* Timespan avalible for booking *@
+                                        <div class="calendar-grid-item-available" ew-calendar-book="@timeSpan.Id" ew-calendar-book-date="@item.WeekDay.Date">@timeSpan.StartAsTime - @timeSpan.EndAsTime</div>
+                                    }
+                                }
+                            }
+                            @* No timespan on this day *@
+                            @if (item.CalendarTimeSpans.Count <= 0)
+                            {
+                                <div class="calendar-grid-item-unavailable"></div>
+                            }
+                        }
+
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+    function RegisterEvents() {
+
+
+        // Nav
+        //
+        document.querySelector("[ew-calendar-next]").addEventListener("click", function () {
+            var date = document.querySelector("[ew-calendar-lastdate]").attributes[0].nodeValue;
+            NextPrev("next", date);
+        })
+
+        // Nav
+        //
+        document.querySelector("[ew-calendar-prev]").addEventListener("click", function () {
+            var date = document.querySelector("[ew-calendar-firstdate]").attributes[0].nodeValue;
+            var today = document.querySelector("[ew-calendar-today]").attributes[0].nodeValue;
+            if (Date.parse(date) > Date.parse(today)) {
+                NextPrev("prev", date);
+            }
+        })
+
+
+        // Open modal
+        //
+        document.querySelectorAll('[ew-calendar-book]').forEach(item => {
+            item.addEventListener('click', event => {
+
+
+                var timespanId = item.attributes[1].nodeValue;
+                var date = item.attributes[2].nodeValue;
+
+                document.querySelector("[ew-input-bookdate]").value = date;
+                document.querySelector("[ew-input-timespanid]").value = timespanId;
+
+                console.log(document.querySelector("[ew-input-bookdate]").value)
+                console.log(document.querySelector("[ew-input-timespanid]").value);
+
+                document.querySelector(".calendar-popup").classList.add("active");
+            })
+        });
+
+        // Close modal
+        //
+        document.querySelector("[ew-calendar-close]").addEventListener("click", function () {
+            document.querySelector("[ew-calendar-popup]").classList.remove("active");
+        });
+
+    }
+
+    RegisterEvents();
+
+    function NextPrev(navigation, weekDay) {
+        // TODO: Kolla om vi kan göra detta utan jQuery? Eller vill vi ha jQuery?
+        $.get("/template" + window.location.pathname + "?key=BookingCalendar&nav=" + navigation + "&date=" + weekDay, function (response) {
+            var content = $(response)[0].innerHTML;
+            document.getElementById("calendarcontainer").innerHTML = content;
+            RegisterEvents();
+        });
+    }
+
+    //ew-calendar-book - Timespan id.
+    //ew-calendar-book-date - Datum man bokar.
+
+</script>
